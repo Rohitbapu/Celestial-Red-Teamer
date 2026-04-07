@@ -1,0 +1,3 @@
+#!/bin/bash
+python3 -m http.server 8080 --directory /home/attacker &
+tail -f /dev/null
