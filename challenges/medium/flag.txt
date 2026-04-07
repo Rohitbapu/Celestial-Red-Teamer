@@ -1,0 +1,1 @@
+FLAG{medium_auth_bypassed}
