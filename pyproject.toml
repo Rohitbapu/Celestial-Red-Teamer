@@ -11,14 +11,14 @@ dependencies = [
     "openenv-core[core]>=0.2.2",
     "openai>=1.0.0",
     "requests>=2.31.0",
-    "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
-    "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0",
     "rich>=13.0.0",
-    "docker>=7.0.0"
+    "docker>=7.0.0",
+    "fastapi>=0.100.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0"
 ]
-
+    
 [project.scripts]
 server = "celestial_red_team2.server.app:main"
 
