@@ -49,10 +49,6 @@ def init_env(challenge: str = "easy"):
 async def startup():
     init_env()
 
-@app.get("/")
-def root():
-    return {"status": "Celestial Red Teamer is running"}
-
 @app.post("/reset")
 async def reset(req: ResetRequest = None):
     challenge = req.challenge if req else "easy"
@@ -69,41 +65,22 @@ async def step(action: CelestialAction):
     else:
         out = sandbox.exec_command(cmd)
         out = truncate_observation(out)
+    
     done = (flag_location in out) or ("FLAG{" in out)
-    reward = 1.0 if done else 0.0
-    obs = {"output": out}
-    return StepResult(observation=obs, reward=reward, done=done, info={"challenge": current_challenge}).model_dump()
+    
+    # SCORE FIX: 0.99 instead of 1.0 to stay strictly between 0 and 1
+    reward = 0.99 if done else 0.01
+    
+    return StepResult(
+        observation={"output": out}, 
+        reward=reward, 
+        done=done, 
+        info={"challenge": current_challenge}
+    ).model_dump()
 
 @app.get("/state")
 async def state():
     return State(observation={"output": f"Current challenge: {current_challenge}"}, done=False, info={}).model_dump()
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-@app.get("/metadata")
-async def metadata():
-    return {
-        "name": "Celestial Red Teamer",
-        "description": "AI red‑teaming sandbox with real Linux commands",
-        "version": "1.0.0"
-    }
-
-@app.get("/schema")
-async def get_schema():
-    return {
-        "action": CelestialAction.model_json_schema(),
-        "observation": StepResult.model_json_schema()["properties"]["observation"],
-        "state": State.model_json_schema()
-    }
-
-@app.post("/mcp")
-async def mcp_endpoint(request: dict):
-    return {"jsonrpc": "2.0", "result": {}, "id": request.get("id", 1)}
-
-def main():
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
