@@ -1,5 +1,18 @@
-import os
+#!/usr/bin/env python3
+import subprocess
 import sys
+import os
+
+# ---------- Auto-install missing dependencies ----------
+required = ["requests", "openai"]
+for pkg in required:
+    try:
+        __import__(pkg)
+    except ImportError:
+        print(f"Auto-installing missing package: {pkg}", file=sys.stderr)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+# Now safe to import
 import json
 import requests
 from openai import OpenAI
@@ -15,7 +28,7 @@ if not API_BASE_URL or not MODEL_NAME or not HF_TOKEN or not OPENAI_API_KEY:
     sys.stderr.write("ERROR: API_BASE_URL, MODEL_NAME, HF_TOKEN, OPENAI_API_KEY must be set\n")
     sys.exit(1)
 
-# ---------- Logging helpers (exact format required) ----------
+# ---------- Logging helpers (exact format) ----------
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -55,7 +68,6 @@ def main():
 
     while not done and step_num < max_steps:
         step_num += 1
-        # Build prompt
         messages = [
             {"role": "system", "content": "You are a red teamer. Output only a single bash command."},
             {"role": "user", "content": f"Terminal output:\n{obs.get('output', '')}\n\nNext command:"}
@@ -73,7 +85,6 @@ def main():
             last_error = str(e)
             command = "echo 'LLM error'"
 
-        # Send command to environment
         try:
             step_resp = requests.post(
                 f"{base_url}/step",
@@ -96,7 +107,6 @@ def main():
         log_step(step=step_num, action=command, reward=reward, done=done, error=last_error)
         last_error = None
 
-    # Calculate final score (normalised 0..1)
     max_possible = 1.0 * max_steps
     score = sum(rewards) / max_possible if max_possible > 0 else 0.0
     score = min(max(score, 0.0), 1.0)
