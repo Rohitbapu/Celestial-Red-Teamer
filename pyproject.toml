@@ -14,3 +14,14 @@ dependencies = [
     "rich>=13.0.0",
     "docker>=7.0.0"
 ]
+
+[project]
+name = "openenv-celestial_red_team2"
+version = "1.0.0"
+# ... (keep your existing dependencies) ...
+
+[project.scripts]
+server = "server.app:main"
+
+[tool.setuptools]
+packages = ["server", "src"] # Tells Python these folders contain code
