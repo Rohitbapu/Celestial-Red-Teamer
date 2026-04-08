@@ -1,9 +1,8 @@
-# server/app.py
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -71,8 +70,7 @@ async def step(action: CelestialAction):
         out = sandbox.exec_command(cmd)
         out = truncate_observation(out)
     done = (flag_location in out) or ("FLAG{" in out)
-    # Reward strictly between 0 and 1 (0.01 for failure, 0.99 for success)
-    reward = 0.99 if done else 0.01
+    reward = 1.0 if done else 0.0
     obs = {"output": out}
     return StepResult(observation=obs, reward=reward, done=done, info={"challenge": current_challenge}).model_dump()
 
