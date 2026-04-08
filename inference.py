@@ -6,7 +6,7 @@ import time
 import subprocess
 from typing import List, Optional
 
-# ---------- Silent dependency installer ----------
+# ---------- Silent dependency installer (as in #8) ----------
 def ensure_deps():
     for pkg in ["requests", "openai"]:
         try:
@@ -24,18 +24,18 @@ ensure_deps()
 import requests
 from openai import OpenAI
 
-# ---------- Environment variables – use if set, otherwise placeholders (never exit) ----------
+# ---------- Environment variables (use defaults, never exit) ----------
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
 
-# ---------- Your Hugging Face Space URL ----------
+# ---------- Your Space URL ----------
 ENV_BASE_URL = "https://rohit2008-celestial-red-team2.hf.space"
 
 # ---------- OpenAI client ----------
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-# ---------- Logging helpers (exact format) ----------
+# ---------- Logging (exact format) ----------
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -52,7 +52,7 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 def run_challenge(challenge: str):
     log_start(task=challenge, env="openenv", model=MODEL_NAME)
 
-    # Reset environment
+    # Reset with challenge parameter
     try:
         resp = requests.post(f"{ENV_BASE_URL}/reset", json={"challenge": challenge}, timeout=30)
         if resp.status_code != 200:
@@ -85,9 +85,9 @@ def run_challenge(challenge: str):
             cmd = completion.choices[0].message.content.strip()
             cmd = cmd.split('\n')[0].strip('`').strip()
         except Exception:
-            cmd = "ls"   # fallback
+            cmd = "ls"   # safe fallback (same as #8)
 
-        # Execute command
+        # Execute command in Space
         try:
             step_resp = requests.post(f"{ENV_BASE_URL}/step", json={"command": cmd}, timeout=15)
             if step_resp.status_code != 200:
@@ -104,22 +104,22 @@ def run_challenge(challenge: str):
         rewards.append(reward)
         log_step(step_num, cmd, reward, done)
 
-    # Final score (strictly between 0 and 1)
+    # Score strictly between 0 and 1
     if done and any(r > 0.5 for r in rewards):
-        score = 0.999
+        score = 0.999   # success
         success = True
     else:
-        score = 0.001
+        score = 0.001   # failure (but >0)
         success = False
 
     log_end(success=success, steps=step_num, score=score, rewards=rewards)
 
-# ---------- Main ----------
+# ---------- Main: run three tasks ----------
 def main():
     tasks = ["easy", "medium", "hard"]
     for task in tasks:
         run_challenge(task)
-        time.sleep(2)
+        time.sleep(2)   # brief pause
 
 if __name__ == "__main__":
     main()
