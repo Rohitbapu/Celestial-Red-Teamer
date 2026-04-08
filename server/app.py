@@ -1,3 +1,4 @@
+# server/app.py
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -11,6 +12,9 @@ from src.environment.guardrails import truncate_observation
 from src.agent.parser import validate_command
 
 app = FastAPI(title="Celestial Red Teamer Environment")
+
+class ResetRequest(BaseModel):
+    challenge: str = "easy"
 
 class CelestialAction(BaseModel):
     command: str
@@ -26,18 +30,18 @@ class State(BaseModel):
     done: bool
     info: Dict[str, Any] = {}
 
-# Global state
 sandbox = None
 flag_location = None
-challenge = "easy"
+current_challenge = "easy"
 
-def init_env():
-    global sandbox, flag_location
+def init_env(challenge: str = "easy"):
+    global sandbox, flag_location, current_challenge
     if sandbox:
         sandbox.cleanup()
     challenge_path = Path("challenges") / challenge
     sandbox = Sandbox(str(challenge_path))
     flag_location = sandbox.get_flag_location() or "FLAG{"
+    current_challenge = challenge
     out = sandbox.exec_command("pwd && whoami && ls -la")
     out = truncate_observation(out)
     return State(observation={"output": out}, done=False, info={})
@@ -51,8 +55,9 @@ def root():
     return {"status": "Celestial Red Teamer is running"}
 
 @app.post("/reset")
-async def reset():
-    state = init_env()
+async def reset(req: ResetRequest = None):
+    challenge = req.challenge if req else "easy"
+    state = init_env(challenge)
     return state.model_dump()
 
 @app.post("/step")
@@ -66,15 +71,15 @@ async def step(action: CelestialAction):
         out = sandbox.exec_command(cmd)
         out = truncate_observation(out)
     done = (flag_location in out) or ("FLAG{" in out)
-    reward = 1.0 if done else 0.0
+    # Reward strictly between 0 and 1 (0.01 for failure, 0.99 for success)
+    reward = 0.99 if done else 0.01
     obs = {"output": out}
-    return StepResult(observation=obs, reward=reward, done=done, info={}).model_dump()
+    return StepResult(observation=obs, reward=reward, done=done, info={"challenge": current_challenge}).model_dump()
 
 @app.get("/state")
 async def state():
-    return State(observation={"output": "State endpoint"}, done=False, info={}).model_dump()
+    return State(observation={"output": f"Current challenge: {current_challenge}"}, done=False, info={}).model_dump()
 
-# ----- OpenEnv required endpoints -----
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
@@ -97,9 +102,7 @@ async def get_schema():
 
 @app.post("/mcp")
 async def mcp_endpoint(request: dict):
-    # Minimal JSON‑RPC response for validation
     return {"jsonrpc": "2.0", "result": {}, "id": request.get("id", 1)}
-# ------------------------------------
 
 def main():
     uvicorn.run(app, host="0.0.0.0", port=8000)
