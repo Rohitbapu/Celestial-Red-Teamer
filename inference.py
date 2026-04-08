@@ -6,7 +6,7 @@ import time
 import subprocess
 from typing import List, Optional
 
-# ---------- Silent dependency installer (no warnings, no exit) ----------
+# ---------- Silent dependency installer ----------
 def ensure_deps():
     for pkg in ["requests", "openai"]:
         try:
@@ -24,18 +24,18 @@ ensure_deps()
 import requests
 from openai import OpenAI
 
-# ---------- Mandatory environment variables (with safe defaults) ----------
+# ---------- Environment variables – use if set, otherwise placeholders (never exit) ----------
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN", "dummy_token")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+HF_TOKEN = os.getenv("HF_TOKEN", "dummy")
 
-# ---------- Your Hugging Face Space (hardcoded) ----------
+# ---------- Your Hugging Face Space URL ----------
 ENV_BASE_URL = "https://rohit2008-celestial-red-team2.hf.space"
 
-# ---------- OpenAI client (uses competition LLM endpoint) ----------
+# ---------- OpenAI client ----------
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-# ---------- Logging helpers (exact format required) ----------
+# ---------- Logging helpers (exact format) ----------
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -59,7 +59,6 @@ def run_challenge(challenge: str):
             raise Exception(f"Reset failed: {resp.text}")
         obs = resp.json().get("observation", {}).get("output", "")
     except Exception as e:
-        # If reset fails, still emit an [END] with low score (never crash)
         sys.stderr.write(f"Reset error for {challenge}: {e}\n")
         log_end(success=False, steps=0, score=0.001, rewards=[])
         return
@@ -72,7 +71,7 @@ def run_challenge(challenge: str):
     while not done and step_num < max_steps:
         step_num += 1
 
-        # Get command from LLM (fallback to "ls" if error)
+        # Get command from LLM
         try:
             completion = client.chat.completions.create(
                 model=MODEL_NAME,
@@ -86,9 +85,9 @@ def run_challenge(challenge: str):
             cmd = completion.choices[0].message.content.strip()
             cmd = cmd.split('\n')[0].strip('`').strip()
         except Exception:
-            cmd = "ls"   # safe fallback
+            cmd = "ls"   # fallback
 
-        # Execute command in your environment
+        # Execute command
         try:
             step_resp = requests.post(f"{ENV_BASE_URL}/step", json={"command": cmd}, timeout=15)
             if step_resp.status_code != 200:
@@ -105,7 +104,7 @@ def run_challenge(challenge: str):
         rewards.append(reward)
         log_step(step_num, cmd, reward, done)
 
-    # Final score strictly between 0 and 1 (0.999 success, 0.001 failure)
+    # Final score (strictly between 0 and 1)
     if done and any(r > 0.5 for r in rewards):
         score = 0.999
         success = True
@@ -115,12 +114,12 @@ def run_challenge(challenge: str):
 
     log_end(success=success, steps=step_num, score=score, rewards=rewards)
 
-# ---------- Main: run all three tasks ----------
+# ---------- Main ----------
 def main():
     tasks = ["easy", "medium", "hard"]
     for task in tasks:
         run_challenge(task)
-        time.sleep(2)   # small delay between tasks
+        time.sleep(2)
 
 if __name__ == "__main__":
     main()
