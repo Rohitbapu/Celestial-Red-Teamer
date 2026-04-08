@@ -4,8 +4,9 @@ import sys
 import json
 import time
 import subprocess
+from typing import List, Optional
 
-# ---------- Silent dependency installer (no warnings) ----------
+# ---------- Silent dependency installer (no warnings, no exit) ----------
 def ensure_deps():
     for pkg in ["requests", "openai"]:
         try:
@@ -23,43 +24,42 @@ ensure_deps()
 import requests
 from openai import OpenAI
 
-# ---------- Competition environment variables (mandatory) ----------
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
+# ---------- Mandatory environment variables (with safe defaults) ----------
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN", "dummy_token")
 
-if not API_BASE_URL or not MODEL_NAME or not HF_TOKEN:
-    sys.stderr.write("ERROR: API_BASE_URL, MODEL_NAME, and HF_TOKEN must be set\n")
-    sys.exit(1)
-
-# ---------- Your Hugging Face Space URL (hardcoded) ----------
+# ---------- Your Hugging Face Space (hardcoded) ----------
 ENV_BASE_URL = "https://rohit2008-celestial-red-team2.hf.space"
 
-# Initialize the OpenAI client using the competition's LLM endpoint
+# ---------- OpenAI client (uses competition LLM endpoint) ----------
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 # ---------- Logging helpers (exact format required) ----------
-def log_start(task: str, env: str, model: str):
+def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
-def log_step(step: int, action: str, reward: float, done: bool, error: str = "null"):
-    print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error}", flush=True)
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str] = None) -> None:
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
 
-def log_end(success: bool, steps: int, score: float, rewards: list):
-    r_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={r_str}", flush=True)
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
 
 # ---------- Run a single challenge ----------
 def run_challenge(challenge: str):
     log_start(task=challenge, env="openenv", model=MODEL_NAME)
 
-    # Reset environment with specific challenge
+    # Reset environment
     try:
         resp = requests.post(f"{ENV_BASE_URL}/reset", json={"challenge": challenge}, timeout=30)
         if resp.status_code != 200:
             raise Exception(f"Reset failed: {resp.text}")
         obs = resp.json().get("observation", {}).get("output", "")
     except Exception as e:
+        # If reset fails, still emit an [END] with low score (never crash)
         sys.stderr.write(f"Reset error for {challenge}: {e}\n")
         log_end(success=False, steps=0, score=0.001, rewards=[])
         return
@@ -72,7 +72,7 @@ def run_challenge(challenge: str):
     while not done and step_num < max_steps:
         step_num += 1
 
-        # Get command from LLM using competition's endpoint
+        # Get command from LLM (fallback to "ls" if error)
         try:
             completion = client.chat.completions.create(
                 model=MODEL_NAME,
@@ -85,8 +85,8 @@ def run_challenge(challenge: str):
             )
             cmd = completion.choices[0].message.content.strip()
             cmd = cmd.split('\n')[0].strip('`').strip()
-        except Exception as e:
-            cmd = "echo 'LLM error'"
+        except Exception:
+            cmd = "ls"   # safe fallback
 
         # Execute command in your environment
         try:
@@ -94,7 +94,7 @@ def run_challenge(challenge: str):
             if step_resp.status_code != 200:
                 raise Exception(f"Step HTTP {step_resp.status_code}")
             result = step_resp.json()
-            reward = result.get("reward", 0.01)   # already between 0-1
+            reward = result.get("reward", 0.01)
             done = result.get("done", False)
             obs = result.get("observation", {}).get("output", "")
         except Exception as e:
@@ -117,10 +117,10 @@ def run_challenge(challenge: str):
 
 # ---------- Main: run all three tasks ----------
 def main():
-    challenges = ["easy", "medium", "hard"]
-    for ch in challenges:
-        run_challenge(ch)
-        time.sleep(2)   # brief pause between tasks
+    tasks = ["easy", "medium", "hard"]
+    for task in tasks:
+        run_challenge(task)
+        time.sleep(2)   # small delay between tasks
 
 if __name__ == "__main__":
     main()
