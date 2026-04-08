@@ -23,20 +23,22 @@ ensure_deps()
 import requests
 from openai import OpenAI
 
-# ---------- Configuration ----------
-ENV_BASE_URL = "https://rohit2008-celestial-red-team2.hf.space"
-# Environment variables with fallbacks
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# ---------- Competition environment variables (mandatory) ----------
+API_BASE_URL = os.getenv("API_BASE_URL")
+MODEL_NAME = os.getenv("MODEL_NAME")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-if not OPENAI_API_KEY:
-    sys.stderr.write("ERROR: OPENAI_API_KEY must be set\n")
+if not API_BASE_URL or not MODEL_NAME or not HF_TOKEN:
+    sys.stderr.write("ERROR: API_BASE_URL, MODEL_NAME, and HF_TOKEN must be set\n")
     sys.exit(1)
 
-client = OpenAI(base_url=API_BASE_URL, api_key=OPENAI_API_KEY)
+# ---------- Your Hugging Face Space URL (hardcoded) ----------
+ENV_BASE_URL = "https://rohit2008-celestial-red-team2.hf.space"
 
-# ---------- Logging helpers (exact format) ----------
+# Initialize the OpenAI client using the competition's LLM endpoint
+client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+
+# ---------- Logging helpers (exact format required) ----------
 def log_start(task: str, env: str, model: str):
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -70,7 +72,7 @@ def run_challenge(challenge: str):
     while not done and step_num < max_steps:
         step_num += 1
 
-        # Get command from LLM
+        # Get command from LLM using competition's endpoint
         try:
             completion = client.chat.completions.create(
                 model=MODEL_NAME,
@@ -86,7 +88,7 @@ def run_challenge(challenge: str):
         except Exception as e:
             cmd = "echo 'LLM error'"
 
-        # Execute command in environment
+        # Execute command in your environment
         try:
             step_resp = requests.post(f"{ENV_BASE_URL}/step", json={"command": cmd}, timeout=15)
             if step_resp.status_code != 200:
