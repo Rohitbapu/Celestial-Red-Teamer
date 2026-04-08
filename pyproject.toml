@@ -1,28 +1,16 @@
-[build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "openenv-celestial_red_team2"
-version = "0.1.0"
-description = "Celestial Red Team2 environment for OpenEnv"
+version = "1.0.0"
+description = "Celestial Red Teamer - Autonomous Cybersecurity Sandbox"
 requires-python = ">=3.10"
 dependencies = [
     "openenv-core[core]>=0.2.2",
     "openai>=1.0.0",
     "requests>=2.31.0",
+    "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
-    "rich>=13.0.0",
-    "docker>=7.0.0",
-    "fastapi>=0.100.0",
     "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
+    "docker>=7.0.0"
 ]
-    
-[project.scripts]
-server = "celestial_red_team2.server.app:main"
-
-[tool.setuptools]
-include-package-data = true
-packages = ["celestial_red_team2", "celestial_red_team2.server"]
-package-dir = { "celestial_red_team2" = ".", "celestial_red_team2.server" = "server" }
