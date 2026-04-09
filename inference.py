@@ -5,7 +5,7 @@ import subprocess
 import time
 import importlib
 
-# ---------- Silent install of missing packages ----------
+# Install missing packages silently
 for pkg in ["requests", "openai"]:
     try:
         subprocess.check_call([sys.executable, "-c", f"import {pkg}"],
@@ -19,11 +19,11 @@ for pkg in ["requests", "openai"]:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env
         )
 
-# ---------- Dynamic imports (no top-level import statements) ----------
+# Now dynamically import
 requests = importlib.import_module("requests")
 OpenAI = importlib.import_module("openai").OpenAI
 
-# ---------- Environment variables (safe defaults) ----------
+# Configuration
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN") or "placeholder"
