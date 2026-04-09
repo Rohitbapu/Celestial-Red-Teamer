@@ -1,0 +1,1 @@
+I think the meta bot is fault, give me a inference.py which is unrelated with a target error to check whether the bot identify it
