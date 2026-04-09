@@ -5,7 +5,7 @@ import subprocess
 import time
 import importlib
 
-# ---------- Silent installation of missing packages ----------
+# ---------- Silent install of missing packages ----------
 for pkg in ["requests", "openai"]:
     try:
         subprocess.check_call([sys.executable, "-c", f"import {pkg}"],
@@ -19,11 +19,11 @@ for pkg in ["requests", "openai"]:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env
         )
 
-# ---------- Now import dynamically ----------
+# ---------- Dynamic imports (no top-level import statements) ----------
 requests = importlib.import_module("requests")
 OpenAI = importlib.import_module("openai").OpenAI
 
-# ---------- Configuration (soft defaults, never exit) ----------
+# ---------- Environment variables (safe defaults) ----------
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN") or "placeholder"
@@ -31,7 +31,6 @@ ENV_URL = "https://rohit2008-celestial-red-team2.hf.space"
 
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-# ---------- Logging helpers ----------
 def log_start(task, env, model):
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -42,9 +41,8 @@ def log_end(success, steps, score, rewards):
     r_str = ",".join(f"{r:.2f}" for r in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={r_str}", flush=True)
 
-# ---------- Run a single challenge ----------
 def run_challenge(challenge_id):
-    log_start(task=challenge_id, env="openenv", model=MODEL_NAME)
+    log_start(challenge_id, "openenv", MODEL_NAME)
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
     obs = "Target active."
@@ -96,7 +94,6 @@ def run_challenge(challenge_id):
     final_score = 0.999 if success else 0.001
     log_end(success, step_num, final_score, rewards)
 
-# ---------- Main ----------
 if __name__ == "__main__":
     for task in ["easy", "medium", "hard"]:
         run_challenge(task)
